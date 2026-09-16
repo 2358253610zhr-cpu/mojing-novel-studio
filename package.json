@@ -1,0 +1,12 @@
+{
+  "name": "mojing-novel-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "墨境 AI 小说创作平台 - 云端可部署 MVP",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
