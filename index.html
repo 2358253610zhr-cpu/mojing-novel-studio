@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b0d10" />
+  <title>墨境 · AI 小说创作平台</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="toast" class="toast"></div>
+  <div class="app-shell">
+    <aside class="rail">
+      <button class="brand" data-view="editor" aria-label="墨境">墨</button>
+      <button class="rail-btn active" data-view="editor" title="创作">✎</button>
+      <button class="rail-btn" data-view="dashboard" title="项目中心">▦</button>
+      <button class="rail-btn" data-view="world" title="世界观">◈</button>
+      <button class="rail-btn" data-view="characters" title="人物">♙</button>
+      <button class="rail-btn" data-view="outline" title="大纲">⌁</button>
+      <button class="rail-btn" data-view="memory" title="记忆库">◆</button>
+      <button class="rail-btn" data-view="foreshadow" title="伏笔">◎</button>
+      <div class="rail-spacer"></div>
+      <button class="rail-btn" data-view="settings" title="设置">⚙</button>
+    </aside>
+
+    <aside class="project-sidebar">
+      <div class="side-head">
+        <div>
+          <div class="eyebrow">CURRENT PROJECT</div>
+          <strong id="sideProjectTitle">《权谋天下》</strong>
+        </div>
+        <span class="status-pill">进行中</span>
+      </div>
+      <div class="side-search"><span>⌕</span><input id="chapterSearch" placeholder="搜索章节"></div>
+      <nav class="module-nav">
+        <button data-view="world">◈ <span>世界观</span></button>
+        <button data-view="characters">♙ <span>人物档案</span></button>
+        <button data-view="outline">⌁ <span>故事大纲</span></button>
+        <button data-view="memory">◆ <span>小说记忆库</span></button>
+        <button data-view="foreshadow">◎ <span>伏笔管理</span></button>
+      </nav>
+      <div class="section-title"><span>章节</span><button id="addChapterBtn">＋</button></div>
+      <div id="chapterList" class="chapter-list"></div>
+      <div class="side-foot">
+        <button id="exportBtn">导出项目</button>
+        <label class="import-label">导入项目<input id="importInput" type="file" accept="application/json"></label>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div>
+          <div id="breadcrumb" class="breadcrumb">权谋天下 / 第 6 章</div>
+          <div id="viewTitle" class="view-title">第一道裂痕</div>
+        </div>
+        <div class="top-actions">
+          <button class="ghost" id="newNovelBtn">＋ 新建小说</button>
+          <button class="ghost" id="modeBtn">写作模式</button>
+          <button class="primary" id="generateBtn">AI 生成下一段</button>
+        </div>
+      </header>
+
+      <section id="editorView" class="view active-view">
+        <div class="editor-toolbar">
+          <div class="chapter-meta"><span id="wordCount">0 字</span><span>·</span><span id="saveState">已保存</span></div>
+          <div class="mini-actions"><button data-ai-action="润色当前段落">润色</button><button data-ai-action="检查当前章节逻辑">逻辑检查</button><button data-ai-action="增强悬念钩子">加强钩子</button></div>
+        </div>
+        <div class="editor-stage">
+          <div class="editor-paper">
+            <div class="chapter-title-line"><input id="chapterTitleInput" value="第一道裂痕" /></div>
+            <div id="chapterSummary" class="chapter-summary"></div>
+            <textarea id="chapterEditor" spellcheck="false"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <section id="dashboardView" class="view">
+        <div class="content-page">
+          <div class="page-head"><div><div class="eyebrow">PROJECT CENTER</div><h1>小说项目中心</h1><p>管理全部小说、创作进度与最近工作。</p></div><button class="primary" id="newNovelBtn2">＋ 新建小说</button></div>
+          <div class="project-grid" id="projectGrid"></div>
+        </div>
+      </section>
+
+      <section id="worldView" class="view"><div class="content-page" id="worldContent"></div></section>
+      <section id="charactersView" class="view"><div class="content-page" id="charactersContent"></div></section>
+      <section id="outlineView" class="view"><div class="content-page" id="outlineContent"></div></section>
+      <section id="memoryView" class="view"><div class="content-page" id="memoryContent"></div></section>
+      <section id="foreshadowView" class="view"><div class="content-page" id="foreshadowContent"></div></section>
+      <section id="settingsView" class="view"><div class="content-page" id="settingsContent"></div></section>
+    </main>
+
+    <aside class="ai-panel">
+      <div class="ai-tabs"><button class="active">AI 助手</button><button>上下文</button><button>检查</button></div>
+      <div class="ai-scroll">
+        <div class="context-card"><div class="card-label">当前上下文</div><div id="aiContext" class="context-text"></div></div>
+        <div class="context-card"><div class="card-label">快捷能力</div><div class="chip-wrap">
+          <button class="chip" data-ai-action="续写当前章节">续写</button><button class="chip" data-ai-action="润色当前章节">润色</button><button class="chip" data-ai-action="扩写当前场景">扩写</button><button class="chip" data-ai-action="检查人物一致性">人设检查</button><button class="chip" data-ai-action="检查伏笔">伏笔检查</button><button class="chip" data-ai-action="分析章节节奏">节奏分析</button>
+        </div></div>
+        <div id="aiMessages" class="ai-messages"><div class="assistant-msg">AI 后端尚未配置时，写作与项目功能仍可正常使用。部署后在云端设置 AI 环境变量即可启用。</div></div>
+      </div>
+      <div class="ai-compose"><textarea id="aiPrompt" placeholder="例如：继续写这一章，保持第三人称限知，不要提前揭露幕后人。"></textarea><div class="compose-row"><span>自动带入：世界观 + 人物 + 大纲 + 当前章</span><button id="sendAiBtn">↑</button></div></div>
+    </aside>
+  </div>
+
+  <div id="wizardModal" class="modal-backdrop hidden">
+    <div class="modal wizard">
+      <div class="modal-head"><div><div class="eyebrow">NEW NOVEL</div><h2>创建新小说</h2></div><button class="icon-btn" data-close="wizardModal">×</button></div>
+      <div class="stepper" id="stepper"></div>
+      <div id="wizardBody"></div>
+      <div class="modal-foot"><button class="ghost" id="wizardPrev">上一步</button><div class="spacer"></div><button class="ghost" id="wizardSkip">跳过</button><button class="primary" id="wizardNext">下一步</button></div>
+    </div>
+  </div>
+
+  <div id="modeModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-head"><div><div class="eyebrow">WRITING MODE</div><h2>写作模式</h2></div><button class="icon-btn" data-close="modeModal">×</button></div>
+      <div class="mode-grid">
+        <button class="mode-card selected" data-mode="逐章串行"><b>逐章串行</b><span>按顺序生成，连续性优先。</span></button>
+        <button class="mode-card" data-mode="子 Agent 并行"><b>子 Agent 并行</b><span>按章节批次并行，主 Agent 做一致性复核。</span></button>
+        <button class="mode-card" data-mode="导演模式"><b>导演模式</b><span>AI 负责结构、场景与冲突，你负责正文。</span></button>
+        <button class="mode-card" data-mode="联合创作"><b>联合创作</b><span>你先写，AI 负责续写、检查与改写。</span></button>
+      </div>
+      <div class="modal-foot"><span id="modeHint">当前：逐章串行</span><div class="spacer"></div><button class="primary" data-close="modeModal">应用</button></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
