@@ -84,6 +84,7 @@ function replaceLastAssistant(text){const list=$$('#aiMessages .assistant-msg');
 $('#sendAiBtn').onclick=()=>sendAI();$('#generateBtn').onclick=()=>sendAI('继续写当前章节的下一段。保持既定视角、人物动机和悬念节奏，不要总结，不要提前揭示最终答案。');$$('[data-ai-action]').forEach(b=>b.onclick=()=>sendAI(b.dataset.aiAction));
 
 $('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='墨境-小说项目-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);toast('项目已导出')};
-$('#importInput').onchange=e=>{const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>{try{state=JSON.parse(reader.result);persist();renderAll();toast('项目已导入')}catch{toast('JSON 文件格式不正确')}};reader.readAsText(f)};
+$('#importInput').onchange=e=>{const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>{try{if(typeof cloudBusy!=='undefined' && cloudBusy){toast('同步正在进行，请稍后导入');return}state=JSON.parse(reader.result);if(typeof resetCloudBase==='function')resetCloudBase();persist();renderAll();toast('项目已导入')}catch{toast('JSON 文件格式不正确')}};reader.readAsText(f)};
 
 renderAll();
+
