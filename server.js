@@ -26,9 +26,11 @@ async function initDb() {
       CREATE TABLE IF NOT EXISTS app_state (
         key TEXT PRIMARY KEY,
         data JSONB NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    await pool.query('ALTER TABLE app_state ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1');
     dbReady = true;
     console.log('墨境数据库已连接');
   } catch (err) {
@@ -71,11 +73,15 @@ async function parseBody(req) {
 }
 
 function authorized(req) {
-  if (!ACCESS_TOKEN) return true;
+  if (!ACCESS_TOKEN) return false;
   return req.headers['x-mojing-token'] === ACCESS_TOKEN;
 }
 
 function requireAuth(req, res) {
+  if (!ACCESS_TOKEN) {
+    send(res, 503, JSON.stringify({ok:false,error:'AUTH_NOT_CONFIGURED',message:'云端访问已关闭，请配置 MOJING_ACCESS_TOKEN。'}));
+    return false;
+  }
   if (authorized(req)) return true;
   send(res, 401, JSON.stringify({ ok:false, error:'UNAUTHORIZED', message:'同步密码不正确。' }));
   return false;
@@ -86,22 +92,33 @@ async function handleState(req, res) {
   if (!pool || !dbReady) return send(res, 503, JSON.stringify({ ok:false, error:'DATABASE_NOT_CONFIGURED', message:'云数据库尚未连接。' }));
 
   if (req.method === 'GET') {
-    const result = await pool.query('SELECT data, updated_at FROM app_state WHERE key=$1', ['default']);
-    if (!result.rows.length) return send(res, 200, JSON.stringify({ ok:true, state:null, updatedAt:null }));
-    return send(res, 200, JSON.stringify({ ok:true, state:result.rows[0].data, updatedAt:result.rows[0].updated_at }));
+    const result = await pool.query('SELECT data, version, updated_at FROM app_state WHERE key=$1', ['default']);
+    if (!result.rows.length) return send(res, 200, JSON.stringify({ ok:true, state:null, version:0, updatedAt:null }));
+    return send(res, 200, JSON.stringify({ ok:true, state:result.rows[0].data, version:result.rows[0].version, updatedAt:result.rows[0].updated_at }));
   }
 
   if (req.method === 'PUT') {
     try {
       const body = await parseBody(req);
-      if (!body || typeof body.state !== 'object') return send(res, 400, JSON.stringify({ ok:false, message:'state 格式无效' }));
+      if (!body || !body.state || typeof body.state !== 'object' || Array.isArray(body.state)) return send(res, 400, JSON.stringify({ ok:false, message:'state 格式无效' }));
+      if (!Number.isSafeInteger(body.baseVersion) || body.baseVersion < 0 || body.baseVersion >= 2147483647) {
+        return send(res, 400, JSON.stringify({ok:false,error:'INVALID_BASE_VERSION',message:'必须提供 baseVersion，请先加载云端数据。'}));
+      }
       const result = await pool.query(
-        `INSERT INTO app_state(key,data,updated_at) VALUES($1,$2::jsonb,NOW())
-         ON CONFLICT(key) DO UPDATE SET data=EXCLUDED.data, updated_at=NOW()
-         RETURNING updated_at`,
-        ['default', JSON.stringify(body.state)]
+        body.baseVersion === 0
+          ? `INSERT INTO app_state(key,data,version,updated_at) VALUES($1,$2::jsonb,1,NOW())
+             ON CONFLICT(key) DO NOTHING RETURNING version, updated_at`
+          : `UPDATE app_state SET data=$2::jsonb, version=version+1, updated_at=NOW()
+             WHERE key=$1 AND version=$3 RETURNING version, updated_at`,
+        body.baseVersion === 0
+          ? ['default', JSON.stringify(body.state)]
+          : ['default', JSON.stringify(body.state), body.baseVersion]
       );
-      return send(res, 200, JSON.stringify({ ok:true, updatedAt:result.rows[0].updated_at }));
+      if (!result.rows.length) {
+        const current = await pool.query('SELECT version, updated_at FROM app_state WHERE key=$1', ['default']);
+        return send(res, 409, JSON.stringify({ok:false,error:'STATE_CONFLICT',version:current.rows[0]?.version ?? 0,updatedAt:current.rows[0]?.updated_at ?? null,message:'云端已有更新，本地内容已保留。请先导出备份，再加载云端数据。'}));
+      }
+      return send(res, 200, JSON.stringify({ok:true,version:result.rows[0].version,updatedAt:result.rows[0].updated_at}));
     } catch (err) {
       return send(res, 500, JSON.stringify({ ok:false, message:'云端保存失败', detail:String(err.message || err) }));
     }
@@ -165,10 +182,10 @@ const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     if (u.pathname === '/api/health') {
-      return send(res, 200, JSON.stringify({ ok:true, app:'mojing-novel-studio', version:'0.2.0', databaseReady:dbReady }));
+      return send(res, 200, JSON.stringify({ ok:true, app:'mojing-novel-studio', version:'0.2.1', databaseReady:dbReady }));
     }
     if (u.pathname === '/api/config') {
-      return send(res, 200, JSON.stringify({ ok:true, version:'0.2.0', databaseConfigured:!!DATABASE_URL, databaseReady:dbReady, aiConfigured:!!(process.env.AI_API_URL && process.env.AI_API_KEY && process.env.AI_MODEL), tokenRequired:!!ACCESS_TOKEN }));
+      return send(res, 200, JSON.stringify({ ok:true, version:'0.2.1', databaseConfigured:!!DATABASE_URL, databaseReady:dbReady, aiConfigured:!!(process.env.AI_API_URL && process.env.AI_API_KEY && process.env.AI_MODEL), tokenRequired:true, authConfigured:!!ACCESS_TOKEN }));
     }
     if (u.pathname === '/api/state') return await handleState(req, res);
     if (u.pathname === '/api/ai' && req.method === 'POST') return await handleAI(req, res);
@@ -181,3 +198,4 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`墨境 v0.2 已启动: http://0.0.0.0:${PORT}`);
 });
+
